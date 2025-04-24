@@ -1,0 +1,630 @@
+@import '../../variables.scss';
+
+.wrapper {
+  width: 100%;
+  min-height: 100vh;
+  background-color: $green-color;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  max-width: 1220px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media screen and (max-width: $tablet) {
+    padding: 30px 20px 40px;
+  }
+
+  @media screen and (max-width: $mobile) {
+    padding: 20px 20px 30px;
+  }
+}
+
+.header {
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 48px;
+  font-weight: 700;
+  color: $white;
+  margin-bottom: 10px;
+
+  @media screen and (max-width: $tablet) {
+    font-size: 40px;
+    margin-bottom: 8px;
+  }
+
+  @media screen and (max-width: $mobile) {
+    font-size: 32px;
+    margin-bottom: 6px;
+  }
+}
+
+.subtitle {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  
+  @media screen and (max-width: $mobile) {
+    font-size: 16px;
+  }
+}
+
+.schedulerContainer {
+  display: flex;
+  gap: 40px;
+  
+  @media screen and (max-width: 1024px) {
+    flex-direction: column;
+    gap: 30px;
+  }
+}
+
+.mapSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.searchInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.inputContainer {
+  width: 100%;
+}
+
+.routeNameInput {
+  width: 100%;
+  height: 60px;
+  background-color: $light-green-color;
+  border: none;
+  border-radius: 15px;
+  padding: 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+  color: $white;
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  &:focus {
+    outline: none;
+  }
+  
+  @media screen and (max-width: $mobile) {
+    height: 50px;
+    font-size: 16px;
+  }
+}
+
+.searchRow {
+  display: flex;
+  gap: 12px;
+  
+  @media screen and (max-width: $mobile) {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+.inputWithIcon {
+  flex: 1;
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchInput {
+  width: 100%;
+  height: 60px;
+  background-color: $light-green-color;
+  border: none;
+  border-radius: 15px;
+  padding: 0 20px 0 50px;
+  font-size: 20px;
+  font-weight: 700;
+  color: $white;
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  &:focus {
+    outline: none;
+  }
+  
+  @media screen and (max-width: $mobile) {
+    height: 50px;
+    font-size: 16px;
+  }
+}
+
+.searchResults {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: $white;
+  border-radius: 10px;
+  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  padding: 10px 0;
+}
+
+.searchResultItem {
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #f0f8f4;
+  }
+}
+
+.resultName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #424242;
+  margin-bottom: 3px;
+}
+
+.resultDescription {
+  font-size: 14px;
+  color: #757575;
+}
+
+.searchSpinner {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: $white;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.searchButton {
+  height: 60px;
+  min-width: 123px;
+  background-color: $orange-color;
+  border: none;
+  border-radius: 15px;
+  padding: 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+  color: $white;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  
+  &:hover {
+    background-color: darken($orange-color, 5%);
+  }
+  
+  &:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  @media screen and (max-width: $mobile) {
+    height: 50px;
+    font-size: 16px;
+  }
+}
+
+.mapContainer {
+  flex: 1;
+  min-height: 450px;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  
+  @media screen and (max-width: $tablet) {
+    min-height: 350px;
+  }
+  
+  @media screen and (max-width: $mobile) {
+    min-height: 300px;
+  }
+}
+
+.mapboxPlaceholder {
+  width: 100%;
+  height: 100%;
+  background-color: #E0EBE6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  min-height: 400px;
+  
+  @media screen and (max-width: $tablet) {
+    min-height: 300px;
+  }
+  
+  @media screen and (max-width: $mobile) {
+    min-height: 250px;
+  }
+}
+
+.mapPlaceholderText {
+  font-size: 18px;
+  font-weight: 500;
+  color: $green-color;
+  text-align: center;
+  padding: 20px;
+}
+
+.infoSection {
+  width: 340px;
+  background-color: $white;
+  border-radius: 15px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  
+  @media screen and (max-width: 1024px) {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+}
+
+.infoTitle {
+  font-size: 30px;
+  font-weight: 700;
+  color: $orange-color;
+  margin-bottom: 10px;
+}
+
+.infoItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+
+  span:last-child {
+    color: #303030;
+    font-weight: 700;
+  }
+}
+
+.infoLabel {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.infoValue {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 20px;
+  
+  .marker {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  span {
+    position: absolute;
+    right: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #303030;
+  }
+}
+
+.marker {
+  width: 16px;
+  height: 16px;
+  background-color: $green-color;
+  border-radius: 50%;
+}
+
+.difficultyIcon {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.routeInstructions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.instructionContainer {
+  background-color: $green-color;
+  border-radius: 15px;
+  padding: 20px 25px;
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  
+  @media screen and (min-width: 768px) {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  @media screen and (max-width: 768px) {
+    padding: 15px 20px;
+  }
+}
+
+.instructionStep {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  
+  @media screen and (min-width: 768px) {
+    flex: 1;
+    padding-right: 10px;
+  }
+  
+  @media screen and (max-width: 768px) {
+    margin-bottom: 15px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $white;
+  color: $green-color;
+  font-weight: bold;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.stepText {
+  color: $white;
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.noRouteMessage {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.routeDetails {
+  h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: $green-color;
+    margin: 0 0 16px 0;
+  }
+}
+
+.routeStats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.routeStat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.routeStatLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: #555;
+}
+
+.routeStatValue {
+  font-size: 16px;
+  font-weight: 700;
+  color: $green-color;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  
+  @media screen and (max-width: $mobile) {
+    flex-direction: column;
+  }
+}
+
+.saveButton {
+  background-color: $orange-color;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 15px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s;
+  
+  &:hover {
+    background-color: darken($orange-color, 5%);
+  }
+  
+  &:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  &.loading {
+    position: relative;
+    color: transparent;
+    
+    &:after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 20px;
+      height: 20px;
+      margin-left: -10px;
+      margin-top: -10px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      border-top-color: white;
+      animation: spin 1s infinite linear;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.errorMessage {
+  color: #e74c3c;
+  font-size: 14px;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+.routeInfoContainer {
+  background-color: $white;
+  border-radius: 15px;
+  padding: 24px;
+  margin-top: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.placeTypeTitle {
+  font-size: 48px;
+  font-weight: 700;
+  color: $white;
+  margin-bottom: 20px;
+}
+
+.placeTypeWrapper {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  
+  @media screen and (max-width: $tablet) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+}
+
+.placeDescription {
+  flex: 1;
+  height: 60px;
+  background-color: $white;
+  border: none;
+  border-radius: 15px;
+  padding: 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #303030;
+  
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.5);
+  }
+  
+  &:focus {
+    outline: none;
+  }
+}
+
+.placeTypeButtons {
+  display: flex;
+  gap: 10px;
+
+  @media screen and (max-width: $mobile) {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+.placeTypeButton {
+  min-width: 130px;
+  height: 63px;
+  padding: 0 20px;
+  border: 2px solid $white;
+  border-radius: 15px;
+  background-color: rgba(255, 255, 255, 0.5);
+  color: $white;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+  
+  &.active {
+    background-color: $white;
+    color: #303030;
+  }
+} 
