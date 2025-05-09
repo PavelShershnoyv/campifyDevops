@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-r$&7o)&q9zw!2qe_q(jgx4c_r*v1_9m-s-+om+xrksggoz#y64
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['202.181.148.113', 'campify.my-vm.work']
+ALLOWED_HOSTS = []
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -97,21 +97,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://localhost",
-    "http://202.181.148.113:3000",
-    "http://202.181.148.113",
-    "http://campify.my-vm.work:3000",
-    "http://campify.my-vm.work",
 ]
 
 # Добавляем CSRF доверенные источники
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost",
-    "http://202.181.148.113:3000",
-    "http://202.181.148.113",
-    "http://campify.my-vm.work:3000",
-    "http://campify.my-vm.work",
 ]
 
 # Настройки куки для кросс-доменных запросов
@@ -207,7 +198,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'documents')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

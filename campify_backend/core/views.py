@@ -1,8 +1,12 @@
+import json
+
 from django.db.models import Avg
 from django.http import JsonResponse, FileResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
+from django.views.decorators.csrf import csrf_exempt
 from drf_yasg import openapi
+from rest_framework.decorators import api_view
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
@@ -206,6 +210,7 @@ class RouteListCreateView(generics.ListCreateAPIView):
         tags=["Route"]
     )
     def get(self, request, *args, **kwargs):
+        cook = request.COOKIES
         return super().get(request, *args, **kwargs)
 
     @swagger_auto_schema(
@@ -295,35 +300,63 @@ class RouteRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
-class UploadGpxFileView(APIView):
+class DownloadCheckListPdfFileView(APIView):
+    @swagger_auto_schema(
+        operation_summary="Получение чеклиста в формате PDF",
+        tags=["Route"],
+        responses={
+            200: openapi.Response('PDF файл', schema=openapi.Schema(type=openapi.TYPE_FILE)),
+            404: 'Файл не найден'
+        }
+    )
+    def get(self, request,pk):
+        try:
+            checklist = Checklist.objects.get(name="checklist")
+            pdf_url = checklist.pdf_url
+            if not pdf_url:
+                return Response({"detail": "Файл не найден."}, status=status.HTTP_404_NOT_FOUND)
+
+            response = FileResponse(pdf_url.open('rb'), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{pdf_url.name}"'
+            return response
+
+        except Checklist.DoesNotExist:
+            return Response({"detail": "Чеклист не найден."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class UploadCheckListPdfFileView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     @swagger_auto_schema(
-        operation_summary="Загрузка GPX-файла по ID маршрута",
-        tags=["Route"],
+        operation_summary="Загрузка чеклиста формата PDF",
+        tags=["Checklist"],
         manual_parameters=[
-            openapi.Parameter('id', openapi.IN_PATH, description="ID маршрута", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('gpx_file', openapi.IN_FORM, type=openapi.TYPE_FILE, description="GPX файл")
+            openapi.Parameter('pdf_file', openapi.IN_FORM, type=openapi.TYPE_FILE, description="PDF файл")
         ],
         responses={200: openapi.Response('Файл загружен')}
     )
-    def post(self, request, id):
-        try:
-            route = Route.objects.get(id=id)
-        except Route.DoesNotExist:
-            return Response({"detail": "Маршрут не найден."}, status=status.HTTP_404_NOT_FOUND)
-
-        gpx_file = request.FILES.get('gpx_file')
-        if not gpx_file:
+    def post(self, request):
+        pdf_file = request.FILES.get('pdf_file')
+        if not pdf_file:
             return Response({"detail": "Файл не найден в запросе."}, status=status.HTTP_400_BAD_REQUEST)
+        if not pdf_file.name.lower().endswith('.pdf'):
+            return Response({"detail": "Файл должен быть в формате PDF."}, status=status.HTTP_400_BAD_REQUEST)
 
-        route.gpx_url = gpx_file
-        route.save()
+        name = pdf_file.name[:-4]
+        try:
+            checklist = Checklist.objects.get(name="checklist")
+            if checklist:
+                return Response({"detail": "Файл с таким названием уже существует."}, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            checklist_pdf = Checklist.objects.create(
+            name = name,
+            pdf_url =  pdf_file
+            )
 
         return Response({
             "detail": "Файл успешно загружен",
-            "gpx_url": route.gpx_url.url
-        })
+        }, status=status.HTTP_200_OK)
+
 
 
 class RouteReviewsView(generics.ListAPIView):
@@ -802,21 +835,6 @@ class ChecklistItemsByIdView(generics.ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-
-# Новый класс API для регистрации через API запросы
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class RegisterAPIView(APIView):
-    @swagger_auto_schema(
-        operation_summary="Регистрация пользователя через API",
-        tags=["Auth"],
-        request_body=RegisterSerializer
-    )
-    def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response({"message": "Пользователь успешно зарегистрирован"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
