@@ -11,6 +11,11 @@ from rest_framework import status, generics
 from .serializers import *
 from .serializers import RegisterSerializer
 from drf_yasg.utils import swagger_auto_schema
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.utils.decorators import method_decorator
+from rest_framework.decorators import api_view
+import json
 
 def access_auth_view(request):
     return render(request, 'access.html')
@@ -18,26 +23,48 @@ def access_auth_view(request):
 def home_view(request):
     return render(request, 'home.html')
 
+@api_view(['POST'])
+@csrf_exempt
 def register_view(request):
-    if request.method == 'POST':
-        serializer = RegisterSerializer(data=request.POST)
+        raw_body = request.body  # Читаем тело запроса один раз
+        data = json.loads(raw_body.decode('utf-8'))
+        serializer = RegisterSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
-            return redirect('login')
-    return render(request, 'register.html')
+            return Response({"success": True}, status=200)
+        return Response(serializer.errors, status=400)
 
+@api_view(['POST'])
+@csrf_exempt
 def login_view(request):
-    if request.method == 'POST':
-        email = request.POST['email']
-        password = request.POST['password']
+        raw_body = request.body  # Читаем тело запроса один раз
+        data = json.loads(raw_body.decode('utf-8'))
+        email = data['email']
+        password = data['password']
         user = authenticate(request, email=email, password=password)
         if user is not None:
             login(request, user)
             refresh = RefreshToken.for_user(user)
-            response = JsonResponse({"message": "Login successful"})
+            response = Response({
+                "message": "Login successful",
+                "user_id": user.id,
+                "access_token": str(refresh.access_token),
+                "refresh_token": str(refresh)
+            }, status=status.HTTP_200_OK)
             response.set_cookie('access_token', str(refresh.access_token), httponly=True)
             return response
-    return render(request, 'login.html')
+        return Response({"error": "Ошибка авторизации"}, status=400)
+
+
+@method_decorator(ensure_csrf_cookie, name='get')
+class GetCSRFTokenView(APIView):
+    @swagger_auto_schema(
+        operation_summary="Получение CSRF-токена для использования на фронтенде",
+        tags=["Auth"]
+    )
+    def get(self, request):
+        csrf_token = get_token(request)
+        return Response({"csrfToken": csrf_token})
 
 
 class UserDetailView(APIView):
@@ -172,7 +199,7 @@ class RouteListCreateView(generics.ListCreateAPIView):
     serializer_class = RouteSerializer
 
     def get_queryset(self):
-        return Route.objects.annotate(average_rating=Avg('reviews__rating'))
+        return Route.objects.filter(is_public=True).annotate(average_rating=Avg('reviews__rating'))
 
     @swagger_auto_schema(
         operation_summary="Список маршрутов",
@@ -195,11 +222,25 @@ class RouteListCreateView(generics.ListCreateAPIView):
         # Возвращаем только ID
         return Response({'id': serializer.instance.id}, status=status.HTTP_201_CREATED)
 
+class UserRouteGetView(generics.ListAPIView):
+    serializer_class = RouteSerializer
+
+    def get_queryset(self):
+        user_id = self.kwargs['user_id']
+        return Route.objects.filter(author=user_id).annotate(average_rating=Avg('reviews__rating'))
+
+    @swagger_auto_schema(
+        operation_summary="Список маршрутов пользователя",
+        tags=["Route"]
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
 class EquipRouteGetView(generics.ListAPIView):
     serializer_class = RouteSerializer
 
     def get_queryset(self):
-        return Route.objects.filter(type = 1)
+        return Route.objects.filter(type = 1, is_public=True)
 
     @swagger_auto_schema(
         operation_summary="Список оборудованных маршрутов",
@@ -208,12 +249,11 @@ class EquipRouteGetView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
-
 class WildRouteGetView(generics.ListAPIView):
     serializer_class = RouteSerializer
 
     def get_queryset(self):
-        return Route.objects.filter(type = 2)
+        return Route.objects.filter(type = 2, is_public=True)
 
     @swagger_auto_schema(
         operation_summary="Список диких маршрутов",
@@ -762,6 +802,21 @@ class ChecklistItemsByIdView(generics.ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+# Новый класс API для регистрации через API запросы
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class RegisterAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="Регистрация пользователя через API",
+        tags=["Auth"],
+        request_body=RegisterSerializer
+    )
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response({"message": "Пользователь успешно зарегистрирован"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

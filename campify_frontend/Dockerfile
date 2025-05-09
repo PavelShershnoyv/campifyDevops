@@ -2,7 +2,7 @@
 FROM node:18
 
 # Устанавливаем рабочую директорию
-WORKDIR /campify_front
+WORKDIR /campify_frontend
 
 # Копируем package.json и package-lock.json
 COPY . .
