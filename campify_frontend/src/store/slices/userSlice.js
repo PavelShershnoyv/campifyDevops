@@ -57,74 +57,11 @@ export const getUserIdFromStore = (state) => {
   return null;
 };
 
-// Функция для получения CSRF-токена
-export const getCSRFToken = createAsyncThunk(
-  'user/getCSRFToken',
-  async (_, { rejectWithValue }) => {
-    try {
-      // Проверяем, есть ли уже токен в куках
-      let token = getCookie('csrftoken');
-      if (token) {
-        console.log('Найден CSRF-токен в куках:', token);
-        return token;
-      }
-      
-      const response = await fetch(`${getApiUrl()}/api/csrf-token/`, {
-        method: 'GET',
-        credentials: 'include', // Важно для работы с куками
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        console.error('Ошибка при получении CSRF-токена. Код ответа:', response.status);
-        return rejectWithValue('Не удалось получить CSRF-токен');
-      }
-      
-      // Получаем токен из ответа API
-      const data = await response.json();
-      console.log('Ответ с CSRF-токеном:', data);
-      
-      // Проверяем, есть ли токен в поле csrfToken (согласно примеру бэкенда)
-      if (data && data.csrfToken) {
-        console.log('Получен CSRF-токен из API:', data.csrfToken);
-        
-        // Сохраняем токен в куки
-        setCookie('csrftoken', data.csrfToken);
-        console.log('Сохранили CSRF-токен в куки. Все куки:', document.cookie);
-        
-        return data.csrfToken;
-      }
-      
-      return rejectWithValue('CSRF токен не найден в ответе');
-    } catch (error) {
-      console.error('Ошибка при получении CSRF-токена:', error);
-      return rejectWithValue(error.message || 'Не удалось получить CSRF-токен');
-    }
-  }
-);
-
 // Асинхронный экшен для регистрации
 export const registerUser = createAsyncThunk(
   'user/register',
   async (userData, { rejectWithValue, dispatch }) => {
     try {
-      // Сначала получаем CSRF-токен
-      // const tokenResult = await dispatch(fetchRoutes());
-      
-      // Если получение токена завершилось ошибкой, прерываем регистрацию
-      // if (tokenResult.error) {
-      //   console.error('Ошибка получения токена:', tokenResult.error);
-      //   return rejectWithValue('Не удалось получить CSRF-токен');
-      // }
-
-      // const swagger = await fetch(`${getApiUrl()}/swagger/`, {
-      //   method: 'GET',
-      //   headers: {'Content-Type': 'application/json',},
-      //   credentials: 'include', // Важно для работы с куками
-      // });
-      
       // Проверяем токен в куках
       const cookieToken = getCookie('csrftoken');
       console.log('CSRF-токен из куки:', cookieToken);
@@ -174,26 +111,10 @@ export const registerUser = createAsyncThunk(
 // Асинхронный экшен для авторизации
 export const loginUser = createAsyncThunk(
   'user/login',
-  async (credentials, { rejectWithValue, dispatch }) => {
+  async (credentials, { rejectWithValue }) => {
     try {
-      // Сначала получаем CSRF-токен
-      const tokenResult = await dispatch(getCSRFToken());
-      
-      // Если получение токена завершилось ошибкой, прерываем авторизацию
-      if (tokenResult.error) {
-        return rejectWithValue('Не удалось получить CSRF-токен');
-      }
-      
-      const csrfToken = tokenResult.payload;
-      
-      // Если нет токена, прерываем запрос
-      if (!csrfToken || typeof csrfToken !== 'string') {
-        return rejectWithValue('CSRF токен отсутствует или имеет неверный формат');
-      }
-      
       const headers = {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,
       };
       
       console.log('Заголовки для входа:', headers);
@@ -236,6 +157,9 @@ export const loginUser = createAsyncThunk(
       // Создаем объект пользователя для хранения в Redux
       const userData = {
         id: data.user_id, // Берем ID напрямую из ответа
+        email: data.email || '', // Добавляем email пользователя
+        username: data.username || '', // Добавляем username пользователя
+        is_pass_test: data.is_pass_test || false, // Добавляем статус прохождения теста
         access_token: data.access_token,
         refresh_token: data.refresh_token,
         isAuthenticated: true
@@ -285,18 +209,138 @@ export const fetchUserById = createAsyncThunk(
   }
 );
 
+// Асинхронный экшен для получения информации о текущем пользователе
+export const fetchUserProfile = createAsyncThunk(
+  'user/fetchUserProfile',
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const { currentUser } = getState().user;
+      if (!currentUser || !currentUser.id) {
+        throw new Error('Пользователь не авторизован');
+      }
+      
+      const url = `${getApiUrl()}/api/users/${currentUser.id}/`;
+      console.log('Запрашиваем информацию о текущем пользователе по URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include', // Важно для работы с куками
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка получения информации о пользователе: ${response.status}`);
+      }
+
+      const userData = await response.json();
+      console.log('Получены данные пользователя:', userData);
+      
+      // Объединяем с текущими данными и обновляем is_pass_test
+      return {
+        ...currentUser,
+        ...userData,
+        is_pass_test: userData.is_pass_test || false
+      };
+    } catch (error) {
+      console.error('Ошибка при получении данных пользователя:', error);
+      return rejectWithValue(error.message || 'Не удалось получить информацию о пользователе');
+    }
+  }
+);
+
+// Асинхронный экшен для отправки данных теста по рекомендациям
+// tagsData - массив строк с тегами, которые выбрал пользователь в опросе
+export const submitUserPreferences = createAsyncThunk(
+  'user/submitUserPreferences',
+  async (tagsData, { rejectWithValue, getState }) => {
+    try {
+      // Получаем ID пользователя из состояния
+      const userId = selectUserId(getState());
+      
+      if (!userId) {
+        throw new Error('Пользователь не авторизован');
+      }
+      
+      // Используем фиксированный URL вместо getApiUrl() для этого эндпоинта
+      const response = await fetch('http://127.0.0.1:8000/api/user/preferences/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          user_id: userId,
+          tags: tagsData
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Ошибка при отправке данных теста';
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          console.error('Не удалось получить детали ошибки:', e);
+        }
+        
+        return rejectWithValue(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log('Ответ при отправке данных теста:', data);
+      
+      // Возвращаем обновленный статус прохождения теста
+      return { is_pass_test: true };
+    } catch (error) {
+      console.error('Ошибка при отправке данных теста:', error);
+      return rejectWithValue(error.message || 'Не удалось отправить данные теста');
+    }
+  }
+);
+
+// Асинхронный экшен для проверки статуса авторизации
+export const checkAuthStatus = createAsyncThunk(
+  'user/checkAuthStatus',
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      // Получаем доступ к текущему состоянию
+      const { user } = getState();
+      
+      // Проверяем наличие данных пользователя в состоянии
+      if (user.currentUser && user.currentUser.email) {
+        console.log('Пользователь уже авторизован:', user.currentUser.email);
+        return user.currentUser;
+      }
+      
+      // Проверяем наличие токена в куках
+      const accessToken = getCookie('access_token');
+      
+      if (!accessToken) {
+        console.log('Токен авторизации не найден в куках');
+        return rejectWithValue('Нет сохраненного токена');
+      }
+      
+      // Вместо запроса на сервер, просто возвращаем статус неавторизованного пользователя
+      return rejectWithValue('Необходима авторизация');
+      
+    } catch (error) {
+      console.error('Ошибка при проверке статуса авторизации:', error);
+      return rejectWithValue(error.message || 'Ошибка проверки статуса авторизации');
+    }
+  }
+);
+
 const initialState = {
   currentUser: null,
   isAuthenticated: false,
   loading: false,
-  csrfLoading: false,
-  csrfError: null,
   error: null,
   registerSuccess: false,
   favorites: [], // Избранные маршруты
   usersCache: {}, // Кэш информации о пользователях по ID
   userLoading: false,
   userError: null,
+  isPassTest: false, // Статус прохождения теста рекомендаций
 };
 
 const userSlice = createSlice({
@@ -329,23 +373,25 @@ const userSlice = createSlice({
     },
     updateUserProfile: (state, action) => {
       // Обновление данных профиля
-      state.currentUser = { ...state.currentUser, ...action.payload };
+      if (state.currentUser) {
+        state.currentUser = { 
+          ...state.currentUser, 
+          ...action.payload,
+          // Если обновляется статус прохождения теста, обновляем и isPassTest
+          is_pass_test: action.payload.is_pass_test !== undefined 
+            ? action.payload.is_pass_test 
+            : state.currentUser.is_pass_test || false
+        };
+        
+        // Обновляем также состояние isPassTest
+        if (action.payload.is_pass_test !== undefined) {
+          state.isPassTest = action.payload.is_pass_test;
+        }
+      }
     }
   },
   extraReducers: (builder) => {
     builder
-      // Обработка экшена getCSRFToken
-      .addCase(getCSRFToken.pending, (state) => {
-        state.csrfLoading = true;
-        state.csrfError = null;
-      })
-      .addCase(getCSRFToken.fulfilled, (state) => {
-        state.csrfLoading = false;
-      })
-      .addCase(getCSRFToken.rejected, (state, action) => {
-        state.csrfLoading = false;
-        state.csrfError = action.payload;
-      })
       // Обработка экшена loginUser
       .addCase(loginUser.pending, (state) => {
         state.loading = true;
@@ -388,6 +434,54 @@ const userSlice = createSlice({
       .addCase(fetchUserById.rejected, (state, action) => {
         state.userLoading = false;
         state.userError = action.payload;
+      })
+      // Обработка экшена fetchUserProfile
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentUser = action.payload;
+        state.isAuthenticated = true;
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Обработка экшена submitUserPreferences
+      .addCase(submitUserPreferences.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(submitUserPreferences.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentUser = {
+          ...state.currentUser,
+          is_pass_test: action.payload.is_pass_test
+        };
+        state.isPassTest = action.payload.is_pass_test;
+        state.isAuthenticated = true;
+      })
+      .addCase(submitUserPreferences.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Обработка экшена checkAuthStatus
+      .addCase(checkAuthStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(checkAuthStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentUser = action.payload;
+        state.isAuthenticated = true;
+      })
+      .addCase(checkAuthStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = null; // Не показываем ошибку пользователю, просто считаем, что он не авторизован
+        state.isAuthenticated = false;
+        state.currentUser = null;
       });
   },
 });

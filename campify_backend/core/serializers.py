@@ -21,7 +21,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('username', 'email','phone','telegram','whatsapp','description','role_id','created_at','last_login')
+        fields = ('id','username', 'email','phone','telegram','whatsapp','description','role_id','created_at','last_login','is_pass_test')
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -49,7 +49,12 @@ class RouteSerializer(serializers.ModelSerializer):
 class RoutePhotoSerializer(serializers.ModelSerializer):
     class Meta:
         model = RoutePhoto
-        fields = ['id', 'route', 'image', 'uploaded_at']
+        fields = ['id', 'route', 'image', 'uploaded_at', 'is_checked']
+
+class ValidationRoutePhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RoutePhoto
+        fields = ['is_checked']
 
 class RouteReviewSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,6 +70,9 @@ class MapPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = MapPoint
         fields = '__all__'
+        extra_kwargs = {
+            'image': {'required': False}
+        }
 
 class PointReviewSerializer(serializers.ModelSerializer):
     class Meta:
@@ -84,4 +92,9 @@ class ChecklistSerializer(serializers.ModelSerializer):
 class ChecklistItemsSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChecklistItems
+        fields = '__all__'
+
+class TagsItemsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
         fields = '__all__'

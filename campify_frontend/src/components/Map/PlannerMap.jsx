@@ -46,14 +46,21 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
         searchMarkerRef.current = null;
       }
 
+      // Создаем контейнер для маркера
+      const markerContainer = document.createElement('div');
+      markerContainer.className = styles.markerContainer;
+
       // Create marker element with pin style (more visible)
       const markerElement = document.createElement('div');
       markerElement.className = styles.searchMarkerPin;
       
+      // Добавляем маркер в контейнер
+      markerContainer.appendChild(markerElement);
+      
       // Add pulse animation container
       const pulseContainer = document.createElement('div');
       pulseContainer.className = styles.pulseContainer;
-      pulseContainer.appendChild(markerElement);
+      pulseContainer.appendChild(markerContainer);
 
       // Create popup
       const popup = new mapboxgl.Popup({
@@ -128,7 +135,8 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
       // Create the marker
       searchMarkerRef.current = new mapboxgl.Marker({
         element: pulseContainer,
-        anchor: 'bottom'
+        anchor: 'center',
+        offset: [0, 0]
       })
         .setLngLat(location.coordinates)
         .setPopup(popup)
@@ -184,17 +192,23 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
       
       // Создаем элемент маркера
       const markerEl = document.createElement('div');
-      markerEl.className = styles.locationMarker;
       
-      // Определяем тип локации (если информация доступна)
+      // Определяем тип локации и стиль маркера
       let markerLabel = 'Л';
+      let markerClass = styles.locationMarker;
+      
       if (point.type === 'camping') markerLabel = 'К'; // Кемпинг
       else if (point.type === 'sight') markerLabel = 'Д'; // Достопримечательность
       else if (point.type === 'viewpoint') markerLabel = 'О'; // Обзорная точка
+      else if (point.type === 'danger') {
+        markerLabel = '⚠'; // Знак опасности
+        markerClass = styles.dangerMarker; // Красный стиль
+      }
       
+      markerEl.className = markerClass;
       markerEl.innerText = markerLabel;
       markerEl.title = point.name || 'Локация';
-      
+    
       // Добавляем data-атрибут с информацией о точке
       markerEl.dataset.locationName = point.name || 'Локация';
       
@@ -212,45 +226,70 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
       markerEl.addEventListener('mouseleave', () => {
         tooltipDiv.style.display = 'none';
       });
-      
-      // Создаем popup с информацией о точке
-      const popupContent = `
-        <div>
-          <h3 style="margin-top: 0; font-size: 16px;">${point.name || 'Локация'}</h3>
-          ${point.description ? `<p style="margin: 5px 0; font-size: 14px;">${point.description}</p>` : ''}
-          <button id="add-location-${index}" style="
+        
+        // Создаем popup с информацией о точке
+        const popupContent = `
+          <div style="max-width: 200px;">
+          ${point.image ? `<img src="${point.image}" alt="${point.name || 'Локация'}" style="
+              width: 100%; 
+              height: 80px; 
+              object-fit: cover; 
+              border-radius: 6px; 
+              margin-bottom: 8px;
+            ">` : ''}
+            <h3 style="
+              margin: 0 0 6px 0; 
+              font-size: 14px; 
+              color: #333; 
+              font-weight: 600;
+              line-height: 1.3;
+          ">${point.name || 'Локация'}</h3>
+                    ${point.description ? `<p style="
+            margin: 0 0 10px 0; 
+            font-size: 12px; 
+            color: #666; 
+            line-height: 1.4;
+          ">${point.description}</p>` : ''}
+          ${point.type !== 'danger' ? `<button id="add-location-${index}" style="
             background-color: #4CAF50; 
             color: white; 
             border: none; 
             padding: 6px 12px; 
             border-radius: 4px;
             cursor: pointer;
-            margin-top: 5px;
             width: 100%;
-          ">Добавить к маршруту</button>
-        </div>
-      `;
-      
-      const popup = new mapboxgl.Popup({
-        closeButton: true,
-        closeOnClick: false,
-        offset: 25
+            font-size: 12px;
+            font-weight: 500;
+          ">Добавить к маршруту</button>` : ''}
+          </div>
+        `;
+        
+        const popup = new mapboxgl.Popup({
+          closeButton: true,
+          closeOnClick: false,
+          offset: 25
       }).setHTML(popupContent);
       
       // Создаем маркер
       const marker = new mapboxgl.Marker({
         element: markerEl,
         anchor: 'bottom'
-      })
-        .setLngLat(coordinates)
+        })
+          .setLngLat(coordinates)
         .setPopup(popup)
-        .addTo(map.current);
-      
+          .addTo(map.current);
+        
       // Сохраняем маркер в ref
       mapPointMarkersRef.current.push(marker);
       
-      // Добавляем обработчик для кнопки в popup после добавления popup в DOM
+            // Добавляем обработчик для кнопки в popup после добавления popup в DOM
       popup.on('open', () => {
+        // Пропускаем добавление обработчика для опасных локаций
+        if (point.type === 'danger') {
+          console.log(`Локация ${point.name} помечена как опасная, кнопка не добавляется`);
+          return;
+        }
+        
         console.log(`Popup для локации ${point.name} открыт, ищем кнопку #add-location-${index}`);
         setTimeout(() => {
           const addButton = document.getElementById(`add-location-${index}`);
@@ -264,114 +303,60 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
             // Добавляем новый обработчик
             newAddButton.addEventListener('click', function(e) {
               // Предотвращаем распространение события вверх
-              e.preventDefault();
-              e.stopPropagation();
-              
+                  e.preventDefault();
+                  e.stopPropagation();
+                  
               console.log(`Кнопка "Добавить к маршруту" нажата для локации ${point.name}`);
-              console.log(`Координаты локации:`, coordinates);
-              
-              // Создаем маркер маршрута
-              const routeMarker = createMarker(coordinates, waypoints.length);
-              
-              // Сохраняем маркер в ref для последующего удаления
-              markersRef.current.push(routeMarker);
-              
-              // Обновляем состояние точек
-              const newWaypoints = [...waypoints, coordinates];
-              setWaypoints(newWaypoints);
-              
-              // Обновляем метки для всех маркеров
-              updateMarkerLabels();
-              
-              // Закрываем popup после добавления точки к маршруту
+                  console.log(`Координаты локации:`, coordinates);
+                  
+                  // Создаем маркер маршрута
+                  const routeMarker = createMarker(coordinates, waypoints.length);
+                  
+                  // Сохраняем маркер в ref для последующего удаления
+                  markersRef.current.push(routeMarker);
+                  
+                  // Обновляем состояние точек
+                  const newWaypoints = [...waypoints, coordinates];
+                  setWaypoints(newWaypoints);
+                  
+                  // Обновляем метки для всех маркеров
+                  updateMarkerLabels();
+                  
+                  // Закрываем popup после добавления точки к маршруту
               marker.togglePopup();
-              
-              // После добавления точки, проверяем можно ли построить маршрут
-              if (newWaypoints.length >= 2) {
-                console.log('Можно построить маршрут, у нас достаточно точек:', newWaypoints.length);
-              }
-              
+                  
+                  // После добавления точки, проверяем можно ли построить маршрут
+                  if (newWaypoints.length >= 2) {
+                    console.log('Можно построить маршрут, у нас достаточно точек:', newWaypoints.length);
+                  }
+                  
               console.log(`Точка локации ${point.name} добавлена к маршруту, всего точек:`, markersRef.current.length);
-            });
+                });
             
             console.log(`Обработчик клика добавлен для кнопки локации ${point.name}`);
           } else {
             console.warn(`Не удалось найти кнопку для локации ${point.name} с ID #add-location-${index}`);
-          }
-        }, 100);
+              }
+            }, 100);
+          });
       });
-    });
   };
 
   // Функция для создания маркера
   const createMarker = (lngLat, index) => {
-    const markerEl = document.createElement('div');
-    
-    // Различаем первую точку (начало) от других
-    if (index === 0) {
-      markerEl.className = styles.startMarker;
-      markerEl.innerText = 'A';
-    } else if (index === waypoints.length) {
-      // Последняя точка (если маркер добавляется в конец)
-      markerEl.className = styles.waypointMarker;
-      markerEl.innerText = 'B';
-    } else {
-      markerEl.className = styles.waypointMarker;
-      markerEl.innerText = index + 1;
-    }
-    
-    // Добавление обработчика двойного клика для удаления маркера
-    markerEl.addEventListener('dblclick', function(e) {
-      e.stopPropagation();
-      
-      const markerToRemove = markersRef.current.find(m => m.getElement() === markerEl);
-      if (markerToRemove) {
-        const indexToRemove = markersRef.current.indexOf(markerToRemove);
-        console.log("Удаление маркера с индексом:", indexToRemove);
-        
-        // Удаляем маркер с карты
-        markerToRemove.remove();
-        
-        // Удаляем маркер из списка
-        markersRef.current = markersRef.current.filter(m => m !== markerToRemove);
-        
-        // Удаляем точку из waypoints
-        const newWaypoints = [...waypoints];
-        newWaypoints.splice(indexToRemove, 1);
-        setWaypoints(newWaypoints);
-        
-        // Обновляем нумерацию маркеров
-        updateMarkerLabels();
-      }
-    });
-    
-    return new mapboxgl.Marker({
-      element: markerEl,
-      draggable: false
-    })
+    // Используем стандартный маркер MapboxGL с цветом
+    const color = index === 0 ? '#4CAF50' : '#ff6b35';
+    const marker = new mapboxgl.Marker({ color })
       .setLngLat(lngLat)
       .addTo(map.current);
+    return marker;
   };
 
-  // Функция для обновления нумерации маркеров
+  // Функция для обновления нумерации маркеров (теперь не нужна, но оставим для popup)
   const updateMarkerLabels = () => {
     markersRef.current.forEach((marker, index) => {
-      const markerEl = marker.getElement();
-      
-      // Обновляем классы и текст
-      if (index === 0) {
-        markerEl.className = styles.startMarker;
-        markerEl.innerText = 'A';
-        markerEl.title = 'Начальная точка (двойной клик для удаления)';
-      } else if (index === markersRef.current.length - 1) {
-        markerEl.className = styles.waypointMarker;
-        markerEl.innerText = 'B';
-        markerEl.title = 'Конечная точка (двойной клик для удаления)';
-      } else {
-        markerEl.className = styles.waypointMarker;
-        markerEl.innerText = index + 1;
-        markerEl.title = 'Промежуточная точка (двойной клик для удаления)';
-      }
+      // Можно добавить popup с буквой/цифрой, если нужно:
+      // marker.setPopup(new mapboxgl.Popup({ offset: 25 }).setText(...))
     });
   };
 
@@ -581,70 +566,6 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
       });
   };
 
-  // Обработчик клика по карте для добавления точки
-  const handleMapClick = (e) => {
-    // Проверяем, не было ли клика по маркеру или другому интерактивному элементу
-    const targetElement = e.originalEvent.target;
-    
-    // Если клик был по маркеру или popup, не добавляем новую точку
-    if (
-      targetElement.closest('.mapboxgl-marker') ||
-      targetElement.closest('.mapboxgl-popup') ||
-      targetElement.closest('button') ||
-      targetElement.className.includes('marker')
-    ) {
-      return;
-    }
-    
-    const newWaypoint = [e.lngLat.lng, e.lngLat.lat];
-    
-    // Создаем маркер
-    const marker = createMarker(newWaypoint, waypoints.length);
-    
-    // Сохраняем маркер в ref для последующего удаления
-    markersRef.current.push(marker);
-    
-    // Обновляем состояние точек
-    const newWaypoints = [...waypoints, newWaypoint];
-    setWaypoints(newWaypoints);
-    
-    // Обновляем метки для всех маркеров
-    updateMarkerLabels();
-
-    console.log("Добавлена новая точка, всего точек:", markersRef.current.length);
-  };
-
-  // Функция для очистки маршрута
-  const clearRouteHandler = () => {
-    // Сбрасываем флаг построения маршрута
-    isRouteBuildingRef.current = false;
-    
-    // Удаляем все маркеры
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
-    
-    // Удаляем маршрут с карты
-    if (map.current && map.current.getSource('route')) {
-      map.current.removeLayer('route');
-      map.current.removeSource('route');
-    }
-    
-    // Сбрасываем точки
-    setWaypoints([]);
-    routeRef.current = null;
-    
-    // Очищаем маршрут в Redux
-    dispatch(clearRoute());
-    
-    // Вызываем колбэк с обнуленной информацией о маршруте
-    if (onRouteUpdate) {
-      onRouteUpdate(null);
-    }
-    // Очищаем также имя и описание маршрута
-    setRouteName('');
-    setRouteDescription('');
-  };
-
   // Добавляем кнопки управления
   const addControls = () => {
     // Контейнер для кнопок
@@ -689,8 +610,41 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
     controlContainer.appendChild(buildRouteBtn);
     controlContainer.appendChild(clearRouteBtn);
     
-    // Добавляем контейнер на карту
-    mapContainer.current.appendChild(controlContainer);
+    // Добавляем контейнер на карту - проверяем существование
+    if (mapContainer.current) {
+      mapContainer.current.appendChild(controlContainer);
+    }
+  };
+
+  // Функция для очистки маршрута
+  const clearRouteHandler = () => {
+    // Сбрасываем флаг построения маршрута
+    isRouteBuildingRef.current = false;
+    
+    // Удаляем все маркеры
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+    
+    // Удаляем маршрут с карты
+    if (map.current && map.current.getSource('route')) {
+      map.current.removeLayer('route');
+      map.current.removeSource('route');
+    }
+    
+    // Сбрасываем точки
+    setWaypoints([]);
+    routeRef.current = null;
+    
+    // Очищаем маршрут в Redux
+    dispatch(clearRoute());
+    
+    // Вызываем колбэк с обнуленной информацией о маршруте
+    if (onRouteUpdate) {
+      onRouteUpdate(null);
+    }
+    // Очищаем также имя и описание маршрута
+    setRouteName('');
+    setRouteDescription('');
   };
 
   // Устанавливаем ошибку из Redux если она есть
@@ -702,6 +656,7 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
     }
   }, [reduxError, routeError]);
 
+  // Добавляем обработчик клика по карте после полной загрузки
   useEffect(() => {
     if (!mapContainer.current) return;
     
@@ -739,23 +694,65 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
         // Add navigation controls
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
         
-        // Handle map load error
-        map.current.on('error', (e) => {
-          console.error('Map error:', e);
-          setError('Произошла ошибка при загрузке карты: ' + e.error?.message || e.message);
-        });
+        // Handle map load error (только если map.current существует)
+        if (map.current) {
+          map.current.on('error', (e) => {
+            console.error('Map error:', e);
+            setError('Произошла ошибка при загрузке карты: ' + e.error?.message || e.message);
+          });
 
-        // Добавляем обработчик клика по карте после полной загрузки
-        map.current.on('load', async () => {
-          // Устанавливаем флаг, что карта инициализирована
-          mapInitializedRef.current = true;
-          
-          map.current.on('click', handleMapClick);
-          addControls();
-          
-          // Загружаем точки с помощью Redux
-          dispatch(fetchMapPoints());
-        });
+          // Добавляем обработчик клика по карте после полной загрузки
+          map.current.on('load', async () => {
+            // Устанавливаем флаг, что карта инициализирована
+            mapInitializedRef.current = true;
+
+            // Добавляем обработчик клика непосредственно на карту через API Mapbox
+            // Этот метод обеспечивает точные географические координаты
+            map.current.on('click', function(e) {
+              // Проверяем, не был ли клик по маркеру или элементу управления
+              // Используем проверку оригинального события
+              if (e.originalEvent && e.originalEvent.target) {
+                const target = e.originalEvent.target;
+                
+                // Если клик был по маркеру или элементу управления - игнорируем
+                if (target.closest('.mapboxgl-marker') || 
+                    target.closest('.mapboxgl-ctrl') || 
+                    target.closest('.mapboxgl-popup') || 
+                    (target.closest('.' + styles.mapControls))) {
+                  console.log('Клик по маркеру или элементу управления - игнорируем');
+                  return;
+                }
+              }
+              
+              // Получаем координаты клика напрямую из события Mapbox
+              // Это гарантирует точность позиционирования
+              const lngLat = e.lngLat;
+              
+              console.log('Координаты клика от API Mapbox:', [lngLat.lng, lngLat.lat]);
+              
+              // Создаем маркер точно в точке клика
+              const newWaypoint = [lngLat.lng, lngLat.lat];
+              const marker = createMarker(newWaypoint, waypoints.length);
+              
+              // Сохраняем маркер
+              markersRef.current.push(marker);
+              
+              // Обновляем состояние точек
+              const newWaypoints = [...waypoints, newWaypoint];
+              setWaypoints(newWaypoints);
+              
+              // Обновляем метки
+              updateMarkerLabels();
+              
+              console.log(`Добавлена новая точка #${markersRef.current.length}, всего точек:`, markersRef.current.length);
+            });
+            
+            addControls();
+            
+            // Загружаем точки с помощью Redux
+            dispatch(fetchMapPoints());
+          });
+        }
       }
     } catch (err) {
       setError(`Ошибка загрузки карты: ${err.message}`);
@@ -770,7 +767,10 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
     // Cleanup function when the component unmounts
     return () => {
       if (map.current) {
-        map.current.off('click', handleMapClick);
+        if (mapContainer.current) {
+          // Удаляем обработчик клика, чтобы избежать утечек памяти
+          mapContainer.current.removeEventListener('click', null);
+        }
         map.current.remove();
         map.current = null;
       }
@@ -785,28 +785,13 @@ const PlannerMap = forwardRef(({ onRouteUpdate }, ref) => {
   }, [mapPoints]);
 
   // Эффект, который срабатывает только при изменении точек маршрута
-  useEffect(() => {
-    // Если карта еще не инициализирована или точек меньше 2, не строим маршрут
-    if (!mapInitializedRef.current || waypoints.length < 2) return;
-    
-    // Если уже идет построение маршрута, выходим
-    if (isRouteBuildingRef.current) {
-      console.log("useEffect: построение маршрута уже в процессе, пропускаем");
-      return;
-    }
-    
-    console.log("useEffect: waypoints изменились, количество точек:", waypoints.length);
-    
-    // Проверяем, совпадает ли количество маркеров с waypoints
-    if (markersRef.current.length !== waypoints.length) {
-      console.log("Количество маркеров не совпадает с количеством точек в waypoints");
-      console.log("Маркеры:", markersRef.current.length, "Waypoints:", waypoints.length);
-      return;
-    }
-    
-    // Строим маршрут только если есть минимум 2 точки и не идет уже построение
-    buildRoute();
-  }, [waypoints]);
+  // useEffect(() => {
+  //   // Отключено: теперь маршрут строится только по кнопке
+  //   // if (!mapInitializedRef.current || waypoints.length < 2) return;
+  //   // if (isRouteBuildingRef.current) return;
+  //   // if (markersRef.current.length !== waypoints.length) return;
+  //   // buildRoute();
+  // }, [waypoints]);
 
   if (error) {
     return (

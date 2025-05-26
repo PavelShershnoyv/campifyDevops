@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Header from '../Header/Header';
@@ -8,10 +8,13 @@ import styles from './Scheduler.module.scss';
 import PlannerMap from '../Map/PlannerMap';
 import { createGPXFromCoordinates, gpxStringToBlob } from '../../utils/gpxUtils';
 import { saveRouteThunk } from '../../features/map/mapPointsSlice';
+import AuthRequiredModal from '../AuthRequiredModal/AuthRequiredModal';
 
 const Scheduler = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector(state => state.user);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [route, setRoute] = useState(null);
   const [routeName, setRouteName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +32,19 @@ const Scheduler = () => {
   
   // Ссылка на карту
   const mapRef = useRef(null);
+  
+  useEffect(() => {
+    // Проверяем авторизацию при загрузке компонента
+    if (!isAuthenticated) {
+      console.log("Авторизован: " + isAuthenticated);
+      setShowAuthModal(true);
+    }
+  }, [isAuthenticated]);
+
+  const handleCloseAuthModal = () => {
+    setShowAuthModal(false);
+    navigate('/');
+  };
   
   // Функция для преобразования минут в часы и минуты
   const formatDuration = (seconds) => {
@@ -434,7 +450,7 @@ const Scheduler = () => {
         <div className={styles.instructionContainer}>
           <div className={styles.instructionStep}>
             <div className={styles.stepNumber}>1</div>
-            <div className={styles.stepText}>Нажмите на карту, чтобы установить начальную точку (зеленый маркер)</div>
+            <div className={styles.stepText}>Нажмите на карту, чтобы установить начальную точку</div>
           </div>
           <div className={styles.instructionStep}>
             <div className={styles.stepNumber}>2</div>
@@ -581,17 +597,11 @@ const Scheduler = () => {
         </div>
       </div>
       
-      <ToastContainer 
-        position="bottom-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
+      <AuthRequiredModal 
+        isOpen={showAuthModal} 
+        onClose={handleCloseAuthModal} 
       />
+      <ToastContainer position="bottom-right" />
     </div>
   );
 };

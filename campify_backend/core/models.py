@@ -1,20 +1,6 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-
-class UserManager(BaseUserManager):
-    def create_user(self, email, username, password=None, **extra_fields):
-        if not email:
-            raise ValueError('Users must have an email address')
-        email = self.normalize_email(email)
-        user = self.model(email=email, username=username, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, email, username, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        return self.create_user(email, username, password, **extra_fields)
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from .managers import UserManager
 
 
 # Create your models here.
@@ -33,6 +19,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
+    is_pass_test = models.BooleanField(default=False)
 
     objects = UserManager()
 
@@ -50,6 +37,19 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
+class Tag(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class UserTagPreference(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tag_preferences')
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    weight = models.FloatField(default=0)
+
+    class Meta:
+        unique_together = ('user', 'tag')
 
 class Route(models.Model):
     DIFFICULTY_CHOICES = [
@@ -79,6 +79,7 @@ class Route(models.Model):
         choices=TYPES,
         default=1,
     )
+    tags = models.ManyToManyField(Tag, related_name='routes', blank=True)
     is_public = models.BooleanField(default=True)
     chat_link = models.URLField(blank=True, null=True)
     views = models.IntegerField(null=True, default=0)
@@ -90,9 +91,9 @@ class Route(models.Model):
 
 class RoutePhoto(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='campify_backend/route_photos/')
+    image = models.ImageField(upload_to='photos/route_photos/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
-
+    is_checked = models.BooleanField(default=False)
 
 class RouteReview(models.Model):
     id = models.AutoField(primary_key=True)
@@ -131,7 +132,7 @@ class MapPoint(models.Model):
     longitude = models.FloatField()
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    photo_url = models.URLField(blank=True, null=True)
+    image =  models.ImageField(upload_to='photos/point_photos/', null=True)
 
     def __str__(self):
         return self.name

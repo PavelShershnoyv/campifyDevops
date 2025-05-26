@@ -2,7 +2,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { 
   loginUser,
   registerUser,
-  getCSRFToken,
+  fetchUserProfile,
+  checkAuthStatus,
   logout, 
   clearErrors,
   resetRegisterSuccess,
@@ -17,17 +18,10 @@ export const useUser = () => {
     currentUser, 
     isAuthenticated, 
     loading, 
-    csrfLoading,
     error,
-    csrfError,
     registerSuccess,
     favorites
   } = useSelector(state => state.user);
-
-  // Получение CSRF-токена
-  const getCsrfToken = async () => {
-    return dispatch(getCSRFToken());
-  };
 
   // Регистрация пользователя
   const register = async (userData) => {
@@ -36,7 +30,22 @@ export const useUser = () => {
 
   // Авторизация пользователя
   const login = async (credentials) => {
-    return dispatch(loginUser(credentials));
+    const result = await dispatch(loginUser(credentials));
+    // После успешной авторизации получаем полную информацию о пользователе
+    if (result.meta.requestStatus === 'fulfilled') {
+      dispatch(fetchUserProfile());
+    }
+    return result;
+  };
+
+  // Проверка статуса авторизации
+  const checkAuth = async () => {
+    return dispatch(checkAuthStatus());
+  };
+
+  // Получение полной информации о текущем пользователе
+  const getUserProfile = async () => {
+    return dispatch(fetchUserProfile());
   };
 
   // Выход из системы
@@ -74,24 +83,39 @@ export const useUser = () => {
     return favorites.includes(routeId);
   };
 
+  // Проверка, является ли текущий пользователь администратором
+  const isAdmin = () => {
+    return isAuthenticated && 
+           currentUser && 
+           currentUser.email === 'admin@adm.ru';
+  };
+  
+  // Проверка, прошел ли пользователь тест рекомендаций
+  const hasPassedTest = () => {
+    return isAuthenticated && 
+           currentUser && 
+           currentUser.is_pass_test === true;
+  };
+
   return {
     currentUser,
     isAuthenticated,
     loading,
-    csrfLoading,
     error,
-    csrfError,
     registerSuccess,
     favorites,
-    getCsrfToken,
     register,
     login,
+    getUserProfile,
     logoutUser,
     clearUserErrors,
     resetRegistrationSuccess,
     addRouteToFavorites,
     removeRouteFromFavorites,
     updateProfile,
-    isRouteFavorite
+    isRouteFavorite,
+    isAdmin,
+    checkAuth,
+    hasPassedTest
   };
 }; 
